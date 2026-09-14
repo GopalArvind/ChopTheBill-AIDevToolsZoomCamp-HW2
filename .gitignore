@@ -17,6 +17,9 @@ frontend/.env.local
 .DS_Store
 Thumbs.db
 
+# IDE
+.idea/
+
 # Python backend (per AGENTS.md: FastAPI + SQLite, future Postgres)
 __pycache__/
 *.pyc
