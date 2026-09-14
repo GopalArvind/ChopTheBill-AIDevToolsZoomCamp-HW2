@@ -1,0 +1,20 @@
+:root { font-family: system-ui, Arial, sans-serif; color: #222; }
+body { margin: 0; background: #f6f7f9; }
+.app { min-height: 100vh; }
+.container { max-width: 900px; margin: 0 auto; padding: 16px; }
+.nav { background: #111; color: #fff; padding: 10px 16px; display: flex; gap: 12px; align-items: center; }
+.nav a { color: #fff; text-decoration: none; margin-right: 12px; }
+.nav .spacer { flex: 1; }
+.nav button { background: #fff; border: 0; padding: 6px 10px; cursor: pointer; border-radius: 4px; }
+.card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 12px 0; }
+input, select, button { font-size: 14px; padding: 8px; margin: 4px 0; }
+input, select { width: 100%; box-sizing: border-box; }
+button.primary { background: #111; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; border-bottom: 1px solid #eee; padding: 8px; }
+.center { text-align: center; padding: 24px; }
+.error { color: #b00020; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
+.modal { background: #fff; padding: 16px; border-radius: 8px; min-width: 320px; max-width: 480px; width: 90%; }
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }

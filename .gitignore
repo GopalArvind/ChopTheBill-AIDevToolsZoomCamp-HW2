@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+dist/
+frontend/dist/
+
+# Env (keep .env.example tracked)
+.env
+.env.local
+frontend/.env
+frontend/.env.local
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Python backend (per AGENTS.md: FastAPI + SQLite, future Postgres)
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+*.sqlite3

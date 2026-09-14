@@ -1,0 +1,456 @@
+openapi: 3.0.3
+info:
+  title: ChopTheBill Backend (as expected by frontend/src/services/realApi.js)
+  version: 0.1.0
+  description: |
+    Backend contract derived from the frontend API client.
+    Base URL defaults to VITE_API_URL (http://localhost:8000 per frontend/.env.example).
+    Auth: JWT Bearer token stored in localStorage as `chopthebil_token` and sent as
+    `Authorization: Bearer <token>`. Error bodies are read as `detail` or `message`.
+servers:
+  - url: http://localhost:8000
+    description: Local dev (VITE_API_URL default)
+
+security: []  # per-endpoint security is declared explicitly below
+
+paths:
+  /signup:
+    post:
+      summary: Create new user
+      operationId: signup
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: Created user + token (frontend stores data.token if present)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /login:
+    post:
+      summary: Authenticate and return JWT
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated user + token (frontend stores data.token if present)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /me:
+    get:
+      summary: Current user profile (used by AuthContext on load)
+      operationId: getProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /groups:
+    get:
+      summary: List current user's groups
+      operationId: listGroups
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Groups the current user is a member of
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create group (creator auto-added as member)
+      operationId: createGroup
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupRequest'
+      responses:
+        '200':
+          description: Created group (frontend expects full Group with resolved member user_ids)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /expenses/{group_id}:
+    get:
+      summary: List expenses in group
+      operationId: listExpenses
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        '200':
+          description: Expenses for the group
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: Add expense with splits
+      operationId: createExpense
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+      responses:
+        '200':
+          description: Created expense (with final splits; equal split if input splits null/empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /balances/{group_id}:
+    get:
+      summary: Compute minimized transactions for group
+      operationId: getBalances
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        '200':
+          description: Net balances + minimized who-owes-whom transactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users:
+    get:
+      summary: List users (used by GroupPage for userMap id -> name)
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All users (public fields only)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT from POST /signup or POST /login (localStorage `chopthebil_token`)
+
+  parameters:
+    GroupId:
+      name: group_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Group id (frontend interpolates groupId from useParams)
+
+  responses:
+    BadRequest:
+      description: Bad request (e.g. Email already registered, Group name required, Amount must be > 0)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing/invalid token (frontend throws 'Not authenticated' / 'Request failed (401)')
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Group not found (or caller not a member)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Pydantic/FastAPI validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    SignupRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          example: Demo User
+        email:
+          type: string
+          format: email
+          example: demo@example.com
+        password:
+          type: string
+          format: password
+          example: demo1234
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: demo@example.com
+        password:
+          type: string
+          format: password
+          example: demo1234
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+          description: JWT (frontend saves to localStorage `chopthebil_token`)
+          example: mock_u_demo
+
+    User:
+      type: object
+      required: [id, name, email]
+      properties:
+        id:
+          type: string
+          example: u_demo
+        name:
+          type: string
+          example: Demo User
+        email:
+          type: string
+          format: email
+          example: demo@example.com
+
+    CreateGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Weekend Trip
+        members:
+          type: array
+          description: >-
+            Member emails as typed in Dashboard comma-separated input
+            (frontend: members.split(',').map(trim).filter(Boolean)).
+            Backend resolves emails to user ids; unknown entries create placeholder users in mock.
+          items:
+            type: string
+          example: [alex@example.com, sam@example.com]
+
+    Group:
+      type: object
+      required: [id, name, members]
+      properties:
+        id:
+          type: string
+          example: g_trip
+        name:
+          type: string
+          example: Weekend Trip
+        members:
+          type: array
+          description: Member user ids (frontend renders g.members.length and passes to AddExpenseModal)
+          items:
+            type: string
+          example: [u_demo, u_alex, u_sam]
+
+    Split:
+      type: object
+      required: [user_id, share_amount]
+      properties:
+        user_id:
+          type: string
+          example: u_alex
+        share_amount:
+          type: number
+          format: float
+          minimum: 0
+          example: 30
+
+    CreateExpenseRequest:
+      type: object
+      required: [description, amount]
+      properties:
+        description:
+          type: string
+          example: Dinner
+        amount:
+          type: number
+          format: float
+          exclusiveMinimum: 0
+          example: 90
+        payer_id:
+          type: string
+          description: Defaults to current user if omitted (mock behavior)
+          example: u_demo
+        splits:
+          type: array
+          nullable: true
+          description: >-
+            Null/empty means backend must equal-split across group members
+            (AddExpenseModal sends splits: null in equal mode).
+            Custom mode sends one entry per member; shares must sum to amount (±0.01).
+          items:
+            $ref: '#/components/schemas/Split'
+        date:
+          type: string
+          format: date
+          description: Defaults to today (YYYY-MM-DD) if omitted
+          example: '2026-09-14'
+
+    Expense:
+      type: object
+      required: [id, group_id, description, amount, payer_id, date, splits]
+      properties:
+        id:
+          type: string
+          example: e_1
+        group_id:
+          type: string
+          example: g_trip
+        description:
+          type: string
+          example: Dinner
+        amount:
+          type: number
+          format: float
+          example: 90
+        payer_id:
+          type: string
+          example: u_demo
+        date:
+          type: string
+          format: date
+          example: '2026-09-14'
+        splits:
+          type: array
+          items:
+            $ref: '#/components/schemas/Split'
+
+    Transaction:
+      type: object
+      required: [from_user_id, to_user_id, amount]
+      properties:
+        from_user_id:
+          type: string
+          description: Debtor
+          example: u_alex
+        to_user_id:
+          type: string
+          description: Creditor
+          example: u_demo
+        amount:
+          type: number
+          format: float
+          example: 30
+
+    BalanceResponse:
+      type: object
+      required: [net, transactions]
+      properties:
+        net:
+          type: object
+          description: user_id -> net amount (positive = owed money), per services/balance.js
+          additionalProperties:
+            type: number
+          example: { u_demo: 60, u_alex: -30, u_sam: -30 }
+        transactions:
+          type: array
+          description: Minimized who-owes-whom (greedy debtor/creditor match, rounded to cents)
+          items:
+            $ref: '#/components/schemas/Transaction'
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: Invalid email or password
+        message:
+          type: string
+          example: Invalid email or password
